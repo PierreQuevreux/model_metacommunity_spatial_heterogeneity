@@ -120,101 +120,15 @@ data_B<-table_for_plot(data_B,6,"biomass")
 data_B$biomass[data_B$biomass<1e-6]=NA
 
 p1<-ggplot(data=data_B)+
-      geom_line(aes(gamma,biomass,colour=species),size=1.5)+
-      facet_wrap(~community,labeller=labeller(community=patch_labels))+
-      corr_colour_TL_2+
-      patch_line+
-      theme +
-      x_axis_gamma+
-      xlab(label_gamma)+
-      ylab("Biomass")
+  geom_line(aes(gamma,biomass,colour=species,linetype=community),size=1.5)+
+  corr_colour_TL_2+
+  patch_line+
+  theme +
+  x_axis_gamma+
+  xlab(label_gamma)+
+  ylab("Biomass")
 
-## biomass in isolated patches # ----
-biomass<-cbind(params_data,as.data.frame(matrix(0,dim(params_data)[1],nSpecies*nCommunity)))
-names(biomass)[(dim(params_data)[2]+1):dim(biomass)[2]]<-c(1:(nSpecies*nCommunity))
-
-for(i in 1:dim(biomass)[1]){
-  params<-as.list(c(g=params_data$g[i],
-                    r=params_data$r[i],
-                    D=params_data$D[i],
-                    m=params_data$m[i],
-                    a=params_data$a[i],
-                    e=params_data$e[i]))
-  params$asym=params_data$asym[[i]]
-  params$disp=params_data$disp[[i]]
-  biomass[i,c(1,2)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,1)
-  biomass[i,c(3,4)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,2)
-}
-biomass<-biomass[biomass$ea==paste(ea1) & biomass$ma==paste(ma1)
-                 & biomass$model=="pert_11",]
-
-# biomasses with dispersal
-data_B<-list_data$data_B
-data_B<-data_B[data_B$model=="pert_11"
-               & data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
-               which(names(data_B)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
-data_B[,dim(data_B)[2]-(3:0)]<-data_B[,dim(data_B)[2]-(3:0)]/biomass[,dim(biomass)[2]-(3:0)]
-data_B<-table_for_plot(data_B,6,"biomass")
-data_B$biomass[data_B$biomass<1e-6]=NA
-
-p2<-ggplot(data=data_B)+
-      geom_line(aes(gamma,biomass,colour=species),size=1.5)+
-      geom_hline(yintercept=1,linetype="dashed")+
-      facet_wrap(~community,labeller=labeller(community=patch_labels))+
-      corr_colour_TL_2+
-      patch_line+
-      theme +
-      x_axis_gamma+
-      xlab(label_gamma)+
-      ylab("Scaled biomass")
-
-# final figure # ----
-graph<-ggdraw(xlim = c(0, 1.05), ylim = c(0, 2)) +
-  draw_plot(p1, 0.05, 1, 1, 1)+
-  draw_plot(p2, 0.05, 0, 1, 1)+
-  draw_plot_label(c("A","B"), c(0,0), c(2,1), size = 30)
-ggsave(paste(path_figure,"figure_biomass.pdf",sep=""), graph, width = 8, height = 8, device=cairo_pdf)
-
-## biomass barplot # ----
-biomass<-cbind(params_data,as.data.frame(matrix(0,dim(params_data)[1],nSpecies*nCommunity)))
-names(biomass)[(dim(params_data)[2]+1):dim(biomass)[2]]<-c(1:(nSpecies*nCommunity))
-
-for(i in 1:dim(biomass)[1]){
-  params<-as.list(c(g=params_data$g[i],
-                    r=params_data$r[i],
-                    D=params_data$D[i],
-                    m=params_data$m[i],
-                    a=params_data$a[i],
-                    e=params_data$e[i]))
-  params$asym=params_data$asym[[i]]
-  params$disp=params_data$disp[[i]]
-  biomass[i,c(1,2)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,1)
-  biomass[i,c(3,4)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,2)
-}
-names(biomass)[dim(biomass)[2]-(3:0)]<-list_data$B_names
-biomass<-biomass[biomass$ea==paste(ea1) & biomass$ma==paste(ma1)
-                 & biomass$model=="pert_11",
-                 which(names(biomass)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
-biomass<-table_for_plot(biomass,6,"biomass")
-biomass$biomass<--biomass$biomass
-
-data_B<-list_data$data_B
-data_B<-data_B[data_B$model=="pert_11"
-               & data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
-               which(names(data_B)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
-data_B<-table_for_plot(data_B,6,"biomass")
-
-data_B<-rbind(data_B,biomass)
-data_B$species<-as.numeric(data_B$species)
-
-p1<-ggplot(data=data_B[data_B$gamma==3,])+
-      geom_rect(aes(xmin=species-0.5,xmax=species+0.5,ymin=0.0001,ymax=biomass,fill=as.factor(species)))+
-      facet_wrap(~community)+
-      coord_flip()+
-      scale_fill_manual(values=c("dodgerblue3","chocolate1"))+
-      theme_void()
-
-ggsave(paste(path_figure,"figure_spillover.pdf",sep=""), p1, width = 6, height = 2, device = cairo_pdf)
+ggsave(paste(path_figure,"figure_biomass.pdf",sep=""), p1, width = 6, height = 4, device=cairo_pdf)
 
 ## correlation inter-patch # ----
 data_C<-list_data$data_C
@@ -310,37 +224,41 @@ colour=viridis(4)
 
 p1<-ggplot(data=data_J[data_J$interaction=="J_21_11",])+
   geom_line(aes(gamma,jacobian),colour=colour[1],size=1.5)+
+  geom_hline(yintercept=0,linetype="dashed",size=1)+
   theme +
   x_axis_gamma+
   ylim(ylim)+
-  xlab(expression(gamma))+
+  xlab(expression(italic("\u03B3")))+
   ylab(label_jacobian)+
   ggtitle("J_21_11")
 
 p2<-ggplot(data=data_J[data_J$interaction=="J_11_21",])+
   geom_line(aes(gamma,jacobian),colour=colour[3],size=1.5)+
+  geom_hline(yintercept=0,linetype="dashed",size=1)+
   theme +
   x_axis_gamma+
   ylim(ylim)+
-  xlab(expression(gamma))+
+  xlab(expression(italic("\u03B3")))+
   ylab(label_jacobian)+
   ggtitle("J_11_21")
 
 p3<-ggplot(data=data_J[data_J$interaction=="J_22_12",])+
   geom_line(aes(gamma,jacobian),colour=colour[2],size=1.5)+
+  geom_hline(yintercept=0,linetype="dashed",size=1)+
   theme +
   x_axis_gamma+
   ylim(ylim)+
-  xlab(expression(gamma))+
+  xlab(expression(italic("\u03B3")))+
   ylab(label_jacobian)+
   ggtitle("J_22_12")
 
 p4<-ggplot(data=data_J[data_J$interaction=="J_12_22",])+
   geom_line(aes(gamma,jacobian),colour=colour[4],size=1.5)+
+  geom_hline(yintercept=0,linetype="dashed",size=1)+
   theme +
   x_axis_gamma+
   ylim(ylim)+
-  xlab(expression(gamma))+
+  xlab(expression(italic("\u03B3")))+
   ylab(label_jacobian)+
   ggtitle("J_12_22")
 
@@ -636,6 +554,111 @@ registerDoParallel(cl)
 results<-foreach(i=1:dim(params_data)[1],.packages=NULL) %dopar% analysis(params_data[i,], B[i,], nSpecies, nCommunity)
 stopCluster(cl)
 list_data<-create_data(params_data, results, nSpecies, nCommunity)
+
+## biomass - source-sink effect # ----
+data_B<-list_data$data_B
+data_B<-data_B[data_B$model=="pert_11"
+               & data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
+               which(names(data_B)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
+data_B<-table_for_plot(data_B,6,"biomass")
+data_B$biomass[data_B$biomass<1e-6]=NA
+
+p1<-ggplot(data=data_B)+
+  geom_line(aes(gamma,biomass,colour=species),size=1.5)+
+  facet_wrap(~community,labeller=labeller(community=patch_labels))+
+  corr_colour_TL_2+
+  patch_line+
+  theme +
+  x_axis_gamma+
+  xlab(label_gamma)+
+  ylab("Biomass")
+
+## biomass in isolated patches # ----
+biomass<-cbind(params_data,as.data.frame(matrix(0,dim(params_data)[1],nSpecies*nCommunity)))
+names(biomass)[(dim(params_data)[2]+1):dim(biomass)[2]]<-c(1:(nSpecies*nCommunity))
+
+for(i in 1:dim(biomass)[1]){
+  params<-as.list(c(g=params_data$g[i],
+                    r=params_data$r[i],
+                    D=params_data$D[i],
+                    m=params_data$m[i],
+                    a=params_data$a[i],
+                    e=params_data$e[i]))
+  params$asym=params_data$asym[[i]]
+  params$disp=params_data$disp[[i]]
+  biomass[i,c(1,2)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,1)
+  biomass[i,c(3,4)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,2)
+}
+biomass<-biomass[biomass$ea==paste(ea1) & biomass$ma==paste(ma1)
+                 & biomass$model=="pert_11",]
+
+# biomasses with dispersal
+data_B<-list_data$data_B
+data_B<-data_B[data_B$model=="pert_11"
+               & data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
+               which(names(data_B)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
+data_B[,dim(data_B)[2]-(3:0)]<-data_B[,dim(data_B)[2]-(3:0)]/biomass[,dim(biomass)[2]-(3:0)]
+data_B<-table_for_plot(data_B,6,"biomass")
+data_B$biomass[data_B$biomass<1e-6]=NA
+
+p2<-ggplot(data=data_B)+
+  geom_line(aes(gamma,biomass,colour=species),size=1.5)+
+  geom_hline(yintercept=1,linetype="dashed")+
+  facet_wrap(~community,labeller=labeller(community=patch_labels))+
+  corr_colour_TL_2+
+  patch_line+
+  theme +
+  x_axis_gamma+
+  xlab(label_gamma)+
+  ylab("Scaled biomass")
+
+# final figure # ----
+graph<-ggdraw(xlim = c(0, 1.05), ylim = c(0, 2)) +
+  draw_plot(p1, 0.05, 1, 1, 1)+
+  draw_plot(p2, 0.05, 0, 1, 1)+
+  draw_plot_label(c("A","B"), c(0,0), c(2,1), size = 30)
+ggsave(paste(path_figure,"supp_biomass.pdf",sep=""), graph, width = 8, height = 8, device=cairo_pdf)
+
+## biomass barplot # ----
+biomass<-cbind(params_data,as.data.frame(matrix(0,dim(params_data)[1],nSpecies*nCommunity)))
+names(biomass)[(dim(params_data)[2]+1):dim(biomass)[2]]<-c(1:(nSpecies*nCommunity))
+
+for(i in 1:dim(biomass)[1]){
+  params<-as.list(c(g=params_data$g[i],
+                    r=params_data$r[i],
+                    D=params_data$D[i],
+                    m=params_data$m[i],
+                    a=params_data$a[i],
+                    e=params_data$e[i]))
+  params$asym=params_data$asym[[i]]
+  params$disp=params_data$disp[[i]]
+  biomass[i,c(1,2)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,1)
+  biomass[i,c(3,4)+dim(params_data)[2]]<-equilibrium_isolated(params,nSpecies,2)
+}
+names(biomass)[dim(biomass)[2]-(3:0)]<-list_data$B_names
+biomass<-biomass[biomass$ea==paste(ea1) & biomass$ma==paste(ma1)
+                 & biomass$model=="pert_11",
+                 which(names(biomass)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
+biomass<-table_for_plot(biomass,6,"biomass")
+biomass$biomass<--biomass$biomass
+
+data_B<-list_data$data_B
+data_B<-data_B[data_B$model=="pert_11"
+               & data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
+               which(names(data_B)%in%c("ea","ma","d","gamma","omega","model",list_data$B_names))]
+data_B<-table_for_plot(data_B,6,"biomass")
+
+data_B<-rbind(data_B,biomass)
+data_B$species<-as.numeric(data_B$species)
+
+p1<-ggplot(data=data_B[data_B$gamma==3,])+
+  geom_rect(aes(xmin=species-0.5,xmax=species+0.5,ymin=0.0001,ymax=biomass,fill=as.factor(species)))+
+  facet_wrap(~community)+
+  coord_flip()+
+  scale_fill_manual(values=c("dodgerblue3","chocolate1"))+
+  theme_void()
+
+ggsave(paste(path_figure,"figure_spillover.pdf",sep=""), p1, width = 6, height = 2, device = cairo_pdf)
 
 ## correlation intra-patch # ----
 data_C<-list_data$data_C
@@ -1012,6 +1035,100 @@ graph<-ggdraw(xlim = c(0, 2.15), ylim = c(0, 1)) +
   draw_plot(legend, 2.05, 0.25, 0.05, 0.5)+
   draw_plot_label(c("A","B"), c(0,1), c(1,1), size = 30)
 ggsave(paste(path_figure,"supp_TS_disp2.pdf",sep=""), graph, width = 14, height = 7, device = cairo_pdf)
+
+# parameters and simulations - gamma - omega - z # ----
+nSpecies=2
+nCommunity=2
+gamma=seq(1,10,0.1) # asymmetry coefficient
+#omega=seq(1,10,0.1) # asymmetry in growth rate
+d=1e6 # high dispersal
+
+params_data<-expand.grid(pert=list(list(c(1,1))), # perturbation of prey in patch 1
+                         disp=list(c(0,1)), # dispersal of predators
+                         gamma=gamma,
+                         d=d,
+                         model="pert_11")
+params_data<-rbind(params_data,expand.grid(pert=list(list(c(1,2))), # perturbation of prey in patch 2
+                                           disp=list(c(0,1)), # dispersal of predators
+                                           gamma=gamma,
+                                           d=d,
+                                           model="pert_12"))
+params_data<-rbind(params_data,expand.grid(pert=list(list(c(2,1))), # perturbation of predators in patch 1
+                                           disp=list(c(0,1)), # dispersal of predators
+                                           gamma=gamma,
+                                           d=d,
+                                           model="pert_21"))
+params_data$omega=params_data$gamma
+temp<-params_data_original
+temp$z=0
+temp2<-params_data_original
+temp2$z=1
+temp<-rbind(temp,params_data_original,temp2)
+temp<-temp[temp$ea==paste(ea1) & temp$ma==paste(ma1),]
+params_data<-merge(temp,params_data)
+rm(temp,temp2)
+# sets asymmetry
+for(i in 1:dim(params_data)[1]){
+  params_data$asym[i]=set_asymmetry(nSpecies,params_data$gamma[i],params_data$omega[i])
+}
+# sets dispersal
+for(i in 1:dim(params_data)[1]){
+  params_data$disp[[i]]=params_data$disp[[i]]*params_data$d[i]
+}
+VE<-diag(rep(sigma^2,nSpecies*nCommunity)) # independent perturbations
+params_data$VE<-list(VE)
+
+B<-equilibrium_analytical_TL2_disp_pred(params_data) # biomass at equilibrium
+coexistence<-coexistence_TL2_disp_pred(params_data) # coexistence of all species
+
+# index of the parameters leading to significant coexistence
+index<-which(coexistence$coexistence_significative==1)
+params_data<-params_data[index,]
+B<-B[index,] # selects the biomasses allowing coexistence
+
+# simulations
+no_cores <- detectCores() - 1
+cl <- makeCluster(no_cores)  
+registerDoParallel(cl)  
+results<-foreach(i=1:dim(params_data)[1],.packages=NULL) %dopar% analysis(params_data[i,], B[i,], nSpecies, nCommunity)
+stopCluster(cl)
+list_data<-create_data(params_data, results, nSpecies, nCommunity)
+
+## variance ratio #----
+data_V<-list_data$data_V
+databis<-data_V[data_V$ea==paste(ea1) & data_V$ma==paste(ma1),
+                c("ea","ma","d","gamma","model","sigma","z","V_11_11",'V_12_12',"V_21_21",'V_22_22')]
+databis$variance<-databis$V_11_11+databis$V_12_12+databis$V_21_21+databis$V_22_22
+databis$variance<-databis$variance/databis$sigma^2
+databis<-databis[,c("ea","ma","d","gamma","model","sigma","z","variance")]
+
+data_B<-list_data$data_B
+temp<-data_B[data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
+             c("ea","ma","d","gamma","model","sigma","z","B_11",'B_12',"B_21")]
+temp$biomass<-temp$B_11
+temp$biomass[temp$model=="pert_12"]=temp$B_12[temp$model=="pert_12"]
+temp$biomass[temp$model=="pert_21"]=temp$B_21[temp$model=="pert_21"]
+temp<-temp[,c("ea","ma","d","gamma","model","sigma","z","biomass")]
+databis<-merge(databis,temp,by=c("ea","ma","d","gamma","model","sigma","z"))
+rm(temp)
+databis$species<-"1"
+databis$species[databis$model=="pert_21"]="2"
+databis$z<-as.factor(databis$z)
+levels(databis$z)<-c(expression(italic(z)*" = 0"),
+                     expression(italic(z)*" = 0.5"),
+                     expression(italic(z)*" = 1"))
+
+p1<-ggplot(data=databis)+
+  geom_point(aes(biomass,variance,colour=species),size=1.5)+
+  facet_wrap(~z,labeller=label_parsed)+
+  corr_colour_TL_2+
+  theme+
+  scale_x_continuous(breaks=c(0.25,0.75))+
+  y_axis_log10+
+  xlab("Biomass")+
+  ylab("Ratio of mean biomass variance\nto perturbation variance")
+
+ggsave(paste(path_figure,"supp_pert_type_variance_ratio.pdf",sep=""),p1, width = 8, height = 4, device = cairo_pdf)
 
 # parameters and simulations - gamma - omega - effect of omega # ----
 nSpecies=2
@@ -1900,6 +2017,84 @@ graph<-ggdraw(xlim = c(0, 2.08), ylim = c(0, 2)) +
 ggsave(paste(path_figure,"supp_env_pert_11.pdf",sep=""), graph, width = 16, height = 10, device = cairo_pdf)
 
 #### CORRELATED ENVIRONMENTAL PERTURBATION #### ----
+# parameters and simulations - gamma - omega - variance ratio # ----
+nSpecies=2
+nCommunity=2
+gamma=seq(1,10,0.1) # asymmetry coefficient
+#omega=seq(1,10,0.1) # asymmetry in growth rate
+d=1e6 # high dispersal
+
+params_data<-expand.grid(pert=list(list(c(1,1))), # perturbation of prey in patch 1
+                         disp=list(c(0,1)), # dispersal of predators
+                         gamma=gamma,
+                         d=d,
+                         model="pert_11")
+params_data<-rbind(params_data,expand.grid(pert=list(list(c(1,2))), # perturbation of prey in patch 2
+                                           disp=list(c(0,1)), # dispersal of predators
+                                           gamma=gamma,
+                                           d=d,
+                                           model="pert_12"))
+params_data$omega=params_data$gamma
+params_data<-merge(params_data_original,params_data)
+params_data<-params_data[params_data$ea==paste(ea1) & params_data$ma==paste(ma1),]
+params_data$z=1 # environmental perturbation
+# sets asymmetry
+for(i in 1:dim(params_data)[1]){
+  params_data$asym[i]=set_asymmetry(nSpecies,params_data$gamma[i],params_data$omega[i])
+}
+# sets dispersal
+for(i in 1:dim(params_data)[1]){
+  params_data$disp[[i]]=params_data$disp[[i]]*params_data$d[i]
+}
+VE<-diag(rep(sigma^2,nSpecies*nCommunity)) # independent perturbations
+params_data$VE<-list(VE)
+
+B<-equilibrium_analytical_TL2_disp_pred(params_data) # biomass at equilibrium
+coexistence<-coexistence_TL2_disp_pred(params_data) # coexistence of all species
+
+# index of the parameters leading to significant coexistence
+index<-which(coexistence$coexistence_significative==1)
+params_data<-params_data[index,]
+B<-B[index,] # selects the biomasses allowing coexistence
+
+# simulations
+no_cores <- detectCores() - 1
+cl <- makeCluster(no_cores)  
+registerDoParallel(cl)  
+results<-foreach(i=1:dim(params_data)[1],.packages=NULL) %dopar% analysis(params_data[i,], B[i,], nSpecies, nCommunity)
+stopCluster(cl)
+list_data<-create_data(params_data, results, nSpecies, nCommunity)
+
+## variance ratio # ----
+data_V<-list_data$data_V
+databis<-data_V[data_V$ea==paste(ea1) & data_V$ma==paste(ma1),
+                c("ea","ma","d","gamma","model","sigma","V_11_11",'V_12_12',"V_21_21",'V_22_22')]
+databis$variance<-1/4*(databis$V_11_11+databis$V_12_12+databis$V_21_21+databis$V_22_22)
+databis$variance<-databis$variance/databis$sigma^2
+databis<-databis[,c("ea","ma","d","gamma","model","sigma","variance")]
+
+data_B<-list_data$data_B
+temp<-data_B[data_B$ea==paste(ea1) & data_B$ma==paste(ma1),
+             c("ea","ma","d","gamma","model","sigma","B_11",'B_12')]
+temp$biomass<-temp$B_11
+temp$biomass[temp$model=="pert_12"]=temp$B_12[temp$model=="pert_12"]
+temp<-temp[,c("ea","ma","d","gamma","model","sigma","biomass")]
+databis<-merge(databis,temp,by=c("ea","ma","d","gamma","model","sigma"))
+rm(temp)
+databis$model<-as.factor(databis$model)
+levels(databis$model)<-c(pert_11,pert_12)
+
+p1<-ggplot(data=databis)+
+  geom_point(aes(biomass,variance,colour=gamma),size=1.5)+
+  facet_wrap(~model)+
+  theme+
+  scale_colour_viridis(name=expression(italic("\u03B3")))+
+  scale_x_continuous(breaks=c(0.1,0.3,0.5))+
+  y_axis_log10+
+  xlab("Biomass")+
+  ylab("Ratio of mean biomass variance\nto perturbation variance")
+ggsave(paste(path_figure,"supp_env_pert_variance_ratio.pdf",sep=""),p1, width = 8, height = 4, device = cairo_pdf)
+
 # parameters and simulations - gamma - omega # ----
 nSpecies=2
 nCommunity=2
@@ -1952,27 +2147,6 @@ registerDoParallel(cl)
 results<-foreach(i=1:dim(params_data)[1],.packages=NULL) %dopar% analysis(params_data[i,], B[i,], nSpecies, nCommunity)
 stopCluster(cl)
 list_data<-create_data(params_data, results, nSpecies, nCommunity)
-
-## variance ratio # ----
-data_V<-list_data$data_V
-databis<-data_V[data_V$ea==paste(ea1) & data_V$ma==paste(ma1),
-                which(names(data_V)%in%c("ea","ma","d","gamma","corr","V_11_11",'V_12_12'))]
-databis<-table_for_plot(databis,5,"variance")
-databis$variance<-databis$variance/sigma
-databis$corr<-as.factor(databis$corr)
-databis$community<-as.factor(databis$community)
-levels(databis$community)<-c("patch #1 (fast)","patch #2 (slow)")
-
-p1<-ggplot(data=databis)+
-  geom_line(aes(gamma,variance,alpha=corr),colour="dodgerblue3",size=1.5)+
-  facet_wrap(~community)+
-  corr_alpha+
-  theme+
-  x_axis_gamma+
-  y_axis_log10+
-  xlab(label_gamma)+
-  ylab("Ratio of prey biomass variance\nto perturbation variance")
-ggsave(paste(path_figure,"supp_env_pert_variance_ratio.pdf",sep=""),p1, width = 8, height = 4, device = cairo_pdf)
 
 ## correlation inter-patch # ----
 data_C<-list_data$data_C

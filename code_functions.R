@@ -76,7 +76,7 @@ jacobian_disp<-function(B,params,nSpecies,nCommunity){
   })
 }
 
-# Final jacobian for the multiRoot algorythm
+# Final Jacobian for the multiRoot algorithm
 jacobian_multiroot<-function(B,params){
   J<-jacobian_intra_patch(B,params,params$nSpecies,params$nCommunity)
   P<-jacobian_disp(B,params,params$nSpecies,params$nCommunity)
@@ -90,9 +90,15 @@ equilibrium_analytical_TL2_disp_pred<-function(params_data){
   B0<-matrix(0,dim(params_data)[1],4)
   colnames(B0)<-c("B_11","B_21","B_12","B_22")
   # biomasses computed analytically (for d>>1, B_21=B_22)
-  B0[,1]=params_data$g/params_data$D*(2*params_data$omega+params_data$lambda*params_data$omega*(params_data$gamma^2+1)-params_data$lambda*params_data$gamma*(1+params_data$omega*params_data$gamma))/(2+params_data$lambda*(params_data$gamma^2+1))
-  B0[,2]=2*params_data$e*params_data$a*params_data$g/params_data$D*(1+params_data$omega*params_data$gamma)/(2+params_data$lambda*(params_data$gamma^2+1))/2
-  B0[,3]=params_data$g/params_data$D*(2+params_data$lambda*(params_data$gamma^2+1)-params_data$lambda*(1+params_data$omega*params_data$gamma))/(2+params_data$lambda*(params_data$gamma^2+1))
+  B0[,1]=params_data$g/params_data$D*
+    (2*params_data$omega + params_data$lambda*params_data$omega - params_data$lambda*params_data$gamma)/
+    (2+params_data$lambda*(params_data$gamma^2+1))
+  B0[,2]=2*params_data$e*params_data$a*params_data$g/params_data$D*
+    (1+params_data$omega*params_data$gamma)/
+    (2+params_data$lambda*(params_data$gamma^2+1))/2
+  B0[,3]=params_data$g/params_data$D*
+    (2+params_data$lambda*params_data$gamma*(params_data$gamma-params_data$omega))/
+       (2+params_data$lambda*(params_data$gamma^2+1))
   B0[,4]=B0[,2]
   B0[,1][B0[,1]<1e-6]=NA
   B0[,3][B0[,3]<1e-6]=NA
@@ -107,11 +113,12 @@ coexistence_TL2_disp_pred<-function(params_data){
   data$crit_patch_1=data$omega*(2+data$lambda)/data$lambda
   # criteria on prey in patch #2
   data$crit_delta=sqrt(8/data$lambda)
-  data$crit_gamma_1=(data$lambda*data$omega+sqrt(data$lambda*(data$lambda*data$omega^2-8)))/2/data$lambda
-  data$crit_gamma_2=(data$lambda*data$omega-sqrt(data$lambda*(data$lambda*data$omega^2-8)))/2/data$lambda
+  data$crit_gamma_1=(data$lambda*data$omega + sqrt(data$lambda*(data$lambda*data$omega^2-8)))/2/data$lambda
+  data$crit_gamma_2=(data$lambda*data$omega - sqrt(data$lambda*(data$lambda*data$omega^2-8)))/2/data$lambda
+  # initiate the column with no coexistence
   data$coexistence=0
   
-  for(i in 1:dim(data)[1]){
+  for(i in 1:nrow(data)){
     if(data$gamma[i]<data$crit_patch_1[i] & # prey biomass in patch #1 positive
        (data$omega[i]<data$crit_delta[i] # prey biomass in patch #2 is always positive
         | data$omega[i]>data$crit_delta[i] & # two roots for gamma (negative biomass between the roots)
@@ -136,8 +143,8 @@ coexistence_TL2_disp_pred<-function(params_data){
 equilibrium_ode<-function(params_data_row, B0, t_max, t_step, nSpecies, nCommunity){
   params<-set_params(params_data_row)
   time<-seq(0,t_max,t_step)
-  TS<-as.data.frame(rk(B0, time, ODE_function, params, method="rk45dp7"))
-  B<-as.numeric(TS[dim(TS)[1],2:dim(TS)[2]])
+  TS<-time_series(params_data_row, B0, t_max, t_step, nSpecies, nCommunity)
+  B<-as.numeric(TS[nrow(TS),2:ncol(TS)])
   return(B)
 }
 
@@ -197,101 +204,16 @@ equilibrium_isolated<-function(params,nSpecies,communityID){ # compute the bioma
   })
 }
 
-# Total biomass at equilibrium in the case of infinite dispersal
-equilibrium_total<-function(params,nSpecies,nCommunity){
-  with(params,{
-    asym_tot<-rep(0,nSpecies)
-    for(i in 1:nCommunity){
-      asym_tot<-asym_tot+asym[[i]]
-    }
-    asym_tot<-asym_tot/nCommunity
-    A<-diag(rep(-1,nSpecies))
-    # interactions
-    for(i in 2:nSpecies){
-      A[i,i-1]=e*a*asym_tot[i]
-    }
-    for(i in 1:(nSpecies-1)){
-      A[i,i+1]=-m*a*asym_tot[i+1]
-    }
-    # constant terms
-    B<-matrix(r/D,
-              nrow = nSpecies,
-              ncol = 1,
-              byrow = TRUE)
-    for(j in 1:nCommunity){
-      B[1,1]=-g*asym_tot[1]/D
-    }
-    B<-B*nCommunity
-    C<-matrix(0,
-              nrow = nSpecies,
-              ncol = 1,
-              byrow = TRUE)
-    C<-solve(A) %*% B
-    return(as.numeric(C))
-  })
-}
-
-# Biomasses at equilibrium in the asymmetric case
-equilibrium_asymmetric<-function(params,nSpecies,nCommunity){
-  # initialisation in the case of no dispersal
-  B0<-NULL
-  for(i in 1:nCommunity){
-    B0<-c(B0,equilibrium_isolated(params,nSpecies,i))
-  }
-  params$nSpecies=nSpecies
-  params$nCommunity=nCommunity
-    B<-nleqslv(x=B0,
-               fn=ODE_function_multiroot,
-               jac=jacobian_multiroot,
-               params,
-               method="Newton",
-               global="gline",
-               xscalm="fixed")$x
-    # redo the root finding if some biomasses are negative
-    count=0 # to avoid an infinit loop
-    while(length(which(B<0))>0 & count<10){
-    B[B<0]=0
-    B<-nleqslv(x=B,
-               fn=ODE_function_multiroot,
-               jac=jacobian_multiroot,
-               params,
-               method="Newton",
-               global="gline",
-               xscalm="fixed")$x
-    count=count+1
-    }
-    if(length(which(B<=0))>0 & count<10){
-      B<-rep(NA, nSpecies*nCommunity)
-    }
-    B[B<1e-6]=0
-  return(B)
-}
-
-# Biomasses at equilibrium when predators disperse a lot
-equilibrium_analytic_disp_2<-function(params){ # compute the biomasses at equilibrium
-  with(params,{
-    B<-rep(0,4)
-    lambda<-e*a^2*m # intensity of top-down control
-    B[1]=g/D*(2*omega+lambda*omega*(gamma^2+1)-lambda*gamma*(1+omega*gamma))/(2+lambda*(gamma^2+1))
-    B[2]=2*e*a*g/D*(1+omega*gamma)/(2+lambda*(gamma^2+1))/2
-    B[3]=g/D*(2+lambda*(gamma^2+1)-lambda*(1+omega*gamma))/(2+lambda*(gamma^2+1))
-    B[4]=B[2]
-    B[1][B[1]<1e-6]=NA
-    B[3][B[3]<1e-6]=NA
-    return(B)
-  })
-}
-
 # Biomasses at equilibrium when top predators disperse a lot
 equilibrium_disp_pred<-function(params,nSpecies,nCommunity){ # compute the biomasses at equilibrium
   with(params,{
-    e=params$e
-    a=params$a
-    m=params$m
-    asym=params$asym
-    r=params$r
-    g=params$g
-    D=params$D
+    # e=params$e
+    # a=params$a
+    # m=params$m
+    # asym=params$asym
+    # r=params$r
+    # g=params$g
+    # D=params$D
     nSpecies=nSpecies-1 # top predators are added at the end
     A<-diag(rep(-1,nSpecies*nCommunity+1)) # +1 is the line of top predators (last line of the matrix)
     for(j in 1:nCommunity){
@@ -318,6 +240,7 @@ equilibrium_disp_pred<-function(params,nSpecies,nCommunity){ # compute the bioma
     for(j in 1:nCommunity){
       B[(j-1)*nSpecies+1,1]=-g*asym[[j]][1]/D
     }
+    B[nrow(B),1]=2*r/D
     C<-matrix(0,
               nrow = nSpecies*nCommunity+1,
               ncol = 1,
@@ -335,13 +258,13 @@ equilibrium_disp_pred<-function(params,nSpecies,nCommunity){ # compute the bioma
 # Biomasses at equilibrium when basal species disperse a lot
 equilibrium_disp_prey<-function(params,nSpecies,nCommunity){ # compute the biomasses at equilibrium
   with(params,{
-    e=params$e
-    a=params$a
-    m=params$m
-    asym=params$asym
-    r=params$r
-    g=params$g
-    D=params$D
+    # e=params$e
+    # a=params$a
+    # m=params$m
+    # asym=params$asym
+    # r=params$r
+    # g=params$g
+    # D=params$D
     nSpecies=nSpecies-1 # top predators are added at the end
     A<-diag(rep(-1,nSpecies*nCommunity+1)) # +1 is the line of basal species (first line of the matrix)
     for(j in 1:nCommunity){
@@ -381,6 +304,42 @@ equilibrium_disp_prey<-function(params,nSpecies,nCommunity){ # compute the bioma
     for(j in 1:nCommunity){
       B[c(2:(nSpecies+1))+(nSpecies+1)*(j-1)]=C[c(1:nSpecies)+nSpecies*(j-1)+1]
     }
+    return(B)
+  })
+}
+
+# Biomasses at equilibrium in a tri-trophic food chain in which the intermediate species disperse a lot
+equilibrium_TL3_disp_2<-function(params){ # compute the biomasses at equilibrium
+  with(params,{
+    e=params$e
+    a=params$a
+    m=params$m
+    asym=params$asym
+    r=params$r
+    g=params$g
+    D=params$D
+    A<-diag(rep(-1,5))
+    A[1,5]=-asym[[1]][2]*m*a/2
+    A[2,5]=asym[[1]][3]*e*a/2
+    A[3,5]=-m*a/2
+    A[4,5]=e*a/2
+    A[5,1]=asym[[1]][2]*e*a/2
+    A[5,2]=-asym[[1]][3]*m*a/2
+    A[5,3]=e*a/2
+    A[5,4]=-m*a/2
+    B<-matrix(r/D,
+              nrow = 5,
+              ncol = 1,
+              byrow = TRUE)
+    B[1,1]=-asym[[1]][1]*g/D
+    B[3,1]=-g/D
+    B[5,1]=2*B[5,1]
+    C<-matrix(0,
+              nrow = 5,
+              ncol = 1,
+              byrow = TRUE)
+    C<-solve(A) %*% B
+    B<-c(C[1,1],C[5,1]/2,C[2,1],C[3,1],C[5,1]/2,C[4,1])
     return(B)
   })
 }
@@ -496,10 +455,10 @@ ODE<-function(B, params){
     ID=0
     for(j in 1:nCommunity){
       ID=(j-1)*nSpecies
-      dB[ID+1]=D*B[ID+1]*(g*asym[[j]][1]/D - B[ID+1])
+      dB[ID+1]=dB[ID+1]+D*B[ID+1]*(g*asym[[j]][1]/D - B[ID+1])
       if(nSpecies>1){
         for(i in 2:nSpecies){
-          dB[ID+i]=D*m^(i-1)*B[ID+i]*(-r/D - B[ID+i] + e*a*asym[[j]][i]*B[ID+i-1])
+          dB[ID+i]=dB[ID+i]+D*m^(i-1)*B[ID+i]*(-r/D - B[ID+i] + e*a*asym[[j]][i]*B[ID+i-1])
         }
         for(i in 1:(nSpecies-1)){
           dB[ID+i]=dB[ID+i]+D*m^(i-1)*B[ID+i]*(- m*a*asym[[j]][i+1]*B[ID+i+1])
@@ -508,14 +467,15 @@ ODE<-function(B, params){
     }
     # dispersal dynamics
     d_matrix<-matrix(0,nSpecies,nCommunity) # matrix containing the dispersal terms
-    B_matrix<-matrix(B,nSpecies,nCommunity) # matrix containg the biomasses
+    B_matrix<-matrix(B,nSpecies,nCommunity) # matrix containing the biomasses
     # final equations
     for(i in 1:nSpecies){
       d_matrix[i,]=D*m^(i-1)*disp[i]*B_matrix[i,]
     }
     for(i in 1:nSpecies){
       for(j in 1:nCommunity){
-        dB[(j-1)*nSpecies+i]=dB[(j-1)*nSpecies+i]-(1+1/(nCommunity-1))*d_matrix[i,j]+sum(d_matrix[i,])/(nCommunity-1)
+        ID=(j-1)*nSpecies
+        dB[ID+i]=dB[ID+i]-(1+1/(nCommunity-1))*d_matrix[i,j]+sum(d_matrix[i,])/(nCommunity-1)
       }
     }
     return(dB)
@@ -527,40 +487,6 @@ ODE_function<-function(t, B, params){
   dB<-ODE(B, params)
   dB[B<=0]=0 # extinction
   return(list(dB))
-}
-
-# ODE of the system for the multiroot function (useless terms are removed)
-ODE_multiroot<-function(B, params){
-  with(params,{
-    dB<-rep(0,nSpecies*nCommunity)
-    # intra-patch dynamics
-    ID=0
-    for(j in 1:nCommunity){
-      ID=(j-1)*nSpecies
-      dB[ID+1]=B[ID+1]*(g*asym[[j]][1]/D - B[ID+1])
-      if(nSpecies>1){
-        for(i in 2:nSpecies){
-          dB[ID+i]=B[ID+i]*(-r/D - B[ID+i] + e*a*asym[[j]][i]*B[ID+i-1])
-        }
-        for(i in 1:(nSpecies-1)){
-          dB[ID+i]=dB[ID+i]+B[ID+i]*(- m*a*asym[[j]][i+1]*B[ID+i+1])
-        }
-      }
-    }
-    # dispersal dynamics
-    d_matrix<-matrix(0,nSpecies,nCommunity) # matrix containing the dispersal terms
-    B_matrix<-matrix(B,nSpecies,nCommunity) # matrix containg the biomasses
-    # final equations
-    for(i in 1:nSpecies){
-      d_matrix[i,]=disp[i]*B_matrix[i,]
-    }
-    for(i in 1:nSpecies){
-      for(j in 1:nCommunity){
-        dB[(j-1)*nSpecies+i]=dB[(j-1)*nSpecies+i]-(1+1/(nCommunity-1))*d_matrix[i,j]+sum(d_matrix[i,])/(nCommunity-1)
-      }
-    }
-    return(dB)
-  })
 }
 
 # root function evaluating if a species has a negative biomass
